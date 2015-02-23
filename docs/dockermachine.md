@@ -262,6 +262,93 @@ NAME        ACTIVE   DRIVER    STATE     URL
 custombox   *        none      Running   tcp://50.134.234.20:2376
 ```
 
+## Using Docker Machine with Docker Swarm
+Docker Machine can also provision [Swarm](https://github.com/docker/swarm) 
+clusters. This can be used with any driver and will be secured with TLS. 
+
+Note: please note that this is an experimental feature and the subcommands and
+options will very likely change.
+
+First, create a Swarm token.  Optionally, you can use another discovery service.
+See the Swarm docs for details.
+
+To create the token, first create a Machine.  This example will use VirtualBox.
+
+```
+$ docker-machine create -d virtualbox local
+```
+
+Load the Machine configuration into your shell:
+
+```
+$ $(docker-machine env local)
+```
+Then run generate the token using the Swarm Docker image:
+
+```
+$ docker run swarm create
+1257e0f0bbb499b5cd04b4c9bdb2dab3
+```
+Once you have the token, you can create the cluster.
+
+
+Once you have the token, you can create the cluster.
+
+### Swarm Master
+
+Create the Swarm master:
+
+```
+docker-machine create \
+    -d virtualbox \
+    --swarm \
+    --swarm-master \
+    --swarm-discovery token://<TOKEN-FROM-ABOVE> \
+    swarm-master
+```
+
+Replace `<TOKEN-FROM-ABOVE>` with your random token.
+This will create the Swarm master and add itself as a Swarm node.
+
+### Swarm Nodes
+
+Now, create more Swarm nodes:
+
+```
+docker-machine create \
+    -d virtualbox \
+    --swarm \
+    --swarm-discovery token://<TOKEN-FROM-ABOVE> \
+    swarm-node-00
+```
+
+You now have a Swarm cluster across two nodes.
+To connect to the Swarm master, use `docker-machine env --swarm swarm-master`
+
+For example:
+
+```
+$ docker-machine env --swarm swarm-master
+export DOCKER_TLS_VERIFY=yes
+export DOCKER_CERT_PATH=/home/ehazlett/.docker/machines/.client
+export DOCKER_HOST=tcp://192.168.99.100:3376
+```
+
+You can load this into your environment using
+`$(docker-machine env --swarm swarm-master)`.
+
+Now you can use the Docker CLI to query:
+
+```
+$ docker info
+Containers: 1
+Nodes: 1
+ swarm-master: 192.168.99.100:2376
+  └ Containers: 2
+  └ Reserved CPUs: 0 / 4
+  └ Reserved Memory: 0 B / 999.9 MiB
+```
+
 ## Subcommands
 
 #### active
@@ -392,10 +479,10 @@ foo0            virtualbox   Running   tcp://192.168.99.105:2376
 
 Log into or run a command on a machine using SSH.
 
+To login, just run `docker-machine ssh machinename`:
+
 ```
-$ docker-machine ssh -c "echo this process ran on a remote machine"
-this process ran on a remote machine
-$ docker-machine ssh
+$ docker-machine ssh dev
                         ##        .
                   ## ## ##       ==
                ## ## ## ##      ===
@@ -413,6 +500,33 @@ Boot2Docker version 1.4.0, build master : 69cf398 - Fri Dec 12 01:39:42 UTC 2014
 docker@boot2docker:~$ ls /
 Users/   dev/     home/    lib/     mnt/     proc/    run/     sys/     usr/
 bin/     etc/     init     linuxrc  opt/     root/    sbin/    tmp      var/
+```
+
+You can also specify commands to run remotely by appending them directly to the
+`docker-machine ssh` command, much like the regular `ssh` program works:
+
+```
+$ docker-machine ssh dev free
+             total         used         free       shared      buffers
+Mem:       1023556       183136       840420            0        30920
+-/+ buffers:             152216       871340
+Swap:      1212036            0      1212036
+```
+
+If the command you are appending has flags, e.g. `df -h`, you can use the flag
+parsing terminator (`--`) to avoid confusing the `docker-machine` client, which
+will otherwise interpret them as flags you intended to pass to it:
+
+```
+$ docker-machine ssh dev -- df -h
+Filesystem                Size      Used Available Use% Mounted on
+rootfs                  899.6M     85.9M    813.7M  10% /
+tmpfs                   899.6M     85.9M    813.7M  10% /
+tmpfs                   499.8M         0    499.8M   0% /dev/shm
+/dev/sda1                18.2G     58.2M     17.2G   0% /mnt/sda1
+cgroup                  499.8M         0    499.8M   0% /sys/fs/cgroup
+/dev/sda1                18.2G     58.2M     17.2G   0%
+/mnt/sda1/var/lib/docker/aufs
 ```
 
 #### start

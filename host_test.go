@@ -36,15 +36,19 @@ func getTestDriverFlags() *DriverOptionsMock {
 	name := hostTestName
 	flags := &DriverOptionsMock{
 		Data: map[string]interface{}{
-			"name": name,
-			"url":  "unix:///var/run/docker.sock",
+			"name":            name,
+			"url":             "unix:///var/run/docker.sock",
+			"swarm":           false,
+			"swarm-host":      "",
+			"swarm-master":    false,
+			"swarm-discovery": "",
 		},
 	}
 	return flags
 }
 
 func getDefaultTestHost() (*Host, error) {
-	host, err := NewHost(hostTestName, hostTestDriverName, hostTestStorePath, hostTestCaCert, hostTestPrivateKey)
+	host, err := NewHost(hostTestName, hostTestDriverName, hostTestStorePath, hostTestCaCert, hostTestPrivateKey, false, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +151,7 @@ func TestGenerateClientCertificate(t *testing.T) {
 }
 
 func TestGenerateDockerConfigNonLocal(t *testing.T) {
-	host, err := NewHost(hostTestName, hostTestDriverName, hostTestStorePath, hostTestCaCert, hostTestPrivateKey)
+	host, err := getDefaultTestHost()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,6 +215,7 @@ func TestMachinePort(t *testing.T) {
 	u := strings.Split(b, "=")
 	url := u[1]
 	url = strings.Replace(url, "'", "", -1)
+	url = strings.Replace(url, "\\\"", "", -1)
 	if url != bindUrl {
 		t.Errorf("expected url %s; received %s", bindUrl, url)
 	}
@@ -250,6 +255,7 @@ func TestMachineCustomPort(t *testing.T) {
 	u := strings.Split(b, "=")
 	url := u[1]
 	url = strings.Replace(url, "'", "", -1)
+	url = strings.Replace(url, "\\\"", "", -1)
 	if url != bindUrl {
 		t.Errorf("expected url %s; received %s", bindUrl, url)
 	}
